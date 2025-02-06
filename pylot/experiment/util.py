@@ -96,3 +96,14 @@ def path_from_job(job):
 
 def config_from_job(job):
     return config_from_path(path_from_job(job))
+
+
+def fmt_time(init_time, finish_time, epochs: int = 1):
+    """
+    Format time difference as Hours:Minutes:Seconds
+    """
+    return str(
+        datetime.timedelta(
+            seconds=max(finish_time - init_time, 1e-7) / max(epochs, 1)
+        )
+    )
