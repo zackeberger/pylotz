@@ -19,7 +19,6 @@ dependencies = [
     "albumentations",
     "box",
     "decoder",
-    "device",
     "diskcache",
     "einops",
     "fastcore",
