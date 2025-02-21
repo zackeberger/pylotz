@@ -11,6 +11,7 @@ from pydantic import validate_arguments
 from tabulate import tabulate
 
 import torch
+import wandb
 import pandas as pd
 
 
@@ -87,9 +88,13 @@ class ETA:
             except ValueError:
                 return
             remain = eta - datetime.now()
-            remain = self.strfdelta(remain, "{hours:02d}:{minutes:02d}:{seconds:02d}")
+            remain = self.strfdelta(
+                remain, "{hours:02d}:{minutes:02d}:{seconds:02d}"
+            )
             N = self.n_steps
-            print(f"ETA ({epoch}/{N}): {eta:%Y-%m-%d %H:%M:%S} - {remain} remaining")
+            print(
+                f"ETA ({epoch}/{N}): {eta:%Y-%m-%d %H:%M:%S} - {remain} remaining"
+            )
 
     def _least_squares_fit(self):
         # Use weighted least squares with exponentially decaying weights
@@ -131,7 +136,9 @@ class ModelCheckpoint:
         self.save_freq = save_freq
 
         min_patterns = ["*loss*", "*err*"]
-        max_patterns = ["*acc*", "*precision*", "*score*"]
+        # TODO-- Zack added auroc here, confirm that is all that is necessary
+        # to save a best model.
+        max_patterns = ["*acc*", "*auroc*", "*precision*", "*score*"]
 
         if mode == "auto":
             self.mode = None
@@ -173,9 +180,13 @@ class ModelCheckpoint:
             self._have_to_save = True
 
         if epoch % self.save_freq == 0 and self._have_to_save:
-            if not (self.experiment.path / "checkpoints").exists(): 
-                (self.experiment.path / "checkpoints").mkdir(parents=True, exist_ok=True)
-            with (self.experiment.path / f"checkpoints/{tag}.pt").open("wb") as f:
+            if not (self.experiment.path / "checkpoints").exists():
+                (self.experiment.path / "checkpoints").mkdir(
+                    parents=True, exist_ok=True
+                )
+            with (self.experiment.path / f"checkpoints/{tag}.pt").open(
+                "wb"
+            ) as f:
                 print(f"Saving model with {tag}")
                 torch.save(self._best_state, f)
                 self._have_to_save = False
@@ -207,6 +218,40 @@ def JobProgress(experiment):
 
 def Timestamp(experiment):
     def TimestampCallback(epoch):
-        experiment.metricsd["timestamp"].log({"epoch": epoch, "timestamp": time.time()})
+        experiment.metricsd["timestamp"].log(
+            {"epoch": epoch, "timestamp": time.time()}
+        )
 
     return TimestampCallback
+
+
+class WandbLogger:
+    """
+    Simple WandbLogger callback
+    """
+
+    def __init__(self, exp, project=None, entity=None, name=None):
+        self.exp = exp
+
+        wandb.init(
+            project=project,
+            entity=entity,
+            config=exp.config.to_dict(),
+            resume="allow",
+        )
+        wandb.run.name = exp.path.name if name is None else name
+
+    def __call__(self, epoch):
+        # Training metrics
+        df = self.exp.metrics.df
+        df = df[df.epoch == epoch]
+        update = {}
+        for _, row in df.iterrows():
+            phase = row["phase"]
+            for metric in df.columns.drop("phase"):
+                if metric == "epoch":
+                    update["epoch"] = row["epoch"]
+                else:
+                    update[f"{phase}_{metric}"] = row[metric]
+
+        wandb.log(update)
