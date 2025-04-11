@@ -58,6 +58,9 @@ def eval_config(config):
     elif "_fn" in config:
         fn = absolute_import(config.pop("_fn"))
         config = partial(fn, **config)
+    elif "_hofn" in config:
+        fn = absolute_import(config.pop("_hofn"))
+        config = fn(**config)
 
     if state is not None:
         key = None
