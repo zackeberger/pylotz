@@ -38,8 +38,12 @@ class ConvEncoder(nn.Sequential):
         if self.collapse_spatial:
             if self.dims == 1:
                 self.gpool = nn.AdaptiveAvgPool1d(1)
-            else:
+            elif self.dims == 2:
                 self.gpool = nn.AdaptiveAvgPool2d((1, 1))
+            elif self.dims == 3:
+                self.gpool = nn.AdaptiveAvgPool3d((1, 1, 1))
+            else: 
+                raise ValueError(f"Unsupported dims={self.dims}")
             self.flatten = Flatten()  # Flatten only to squeeze spatial dims
 
 

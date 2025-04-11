@@ -80,7 +80,7 @@ class UNet(nn.Module):
                 module.reset_parameters()
 
     def forward(self, x: Tensor) -> Tensor:
-
+        pool_fn = [F.max_pool1d, F.max_pool2d, F.max_pool3d][self.dims - 1]
         conv_outputs = []
 
         for i, conv_block in enumerate(self.down_blocks):
@@ -88,7 +88,7 @@ class UNet(nn.Module):
             if i == len(self.down_blocks) - 1:
                 break
             conv_outputs.append(x)
-            x = F.max_pool2d(x, 2)
+            x = pool_fn(x, 2)  # Pool in 1D, 2D, or 3D depending on self.dims
 
         for i, conv_block in enumerate(self.up_blocks, start=1):
             x = F.interpolate(
