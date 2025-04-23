@@ -3,6 +3,7 @@ from typing import Optional, List
 import torch
 import medmnist
 from torchvision import transforms
+from torch.utils.data import Dataset
 
 _constructors = {
     "OrganMNIST3D": medmnist.OrganMNIST3D
@@ -45,6 +46,7 @@ def OrganMNIST3D(
     path: Optional[str] = None,
     cast_to_float: bool = True,
     norm: bool = False,
+    only_inputs: bool = False,
     augmentation: bool = False,
     augment_kw: dict = None
 ):
@@ -69,4 +71,20 @@ def OrganMNIST3D(
     dataset = dataset_builder("OrganMNIST3D", split, normalize, transform, path)
     dataset.shape = (1,28,28,28)
     dataset.n_classes = 11
+
+    if only_inputs:
+        dataset = OnlyInputDataset(dataset)
+
     return dataset
+
+class OnlyInputDataset(Dataset):
+    """Wrapper for a dataset that only returns the input, leaving out the target."""
+    def __init__(self, base_dataset):
+        self.base_dataset = base_dataset
+
+    def __len__(self):
+        return len(self.base_dataset)
+
+    def __getitem__(self, idx):
+        x, *_ = self.base_dataset[idx]
+        return x
