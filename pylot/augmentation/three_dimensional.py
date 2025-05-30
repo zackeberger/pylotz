@@ -20,28 +20,27 @@ class TransformPipeline:
     def __call__(self, data):
         # If we detect a 5D tensor => [B, C, D, H, W]
         if data.ndim == 5:
-            # We'll apply transforms to each sample individually
-            # which is what MONAI expects (C, D, H, W).
+            # MONAI expects (C, H, W, D), so we'll apply transforms to each sample
+            # individually. Additionally, we will permute the axes from (D, H, W)
+            # to (H, W, D) before applying transforms, and permute them back afterward.
+            # We use .contiguous() because permute returns a non-contiguous view,
+            # while we need a contiguous tensor for later processing.
             out_list = []
             for i in range(data.shape[0]):
                 sample = data[i]  # shape (C, D, H, W)
-                # Convert from (C, D, H, W) to (C, H, W, D) for MONAI
                 sample = sample.permute(0, 2, 3, 1)  # (C, D, H, W) -> (C, H, W, D)
                 for t in self.transforms:
                     sample = t(sample)
-                # Convert back from (C, H, W, D) to (C, D, H, W)
-                sample = sample.permute(0, 3, 1, 2)  # (C, H, W, D) -> (C, D, H, W)
+                sample = sample.permute(0, 3, 1, 2).contiguous()  # (C, H, W, D) -> (C, D, H, W)
                 out_list.append(sample)
             # Stack them back up: (B, C, D, H, W)
             return torch.stack(out_list, dim=0)
         else:
             # For a single sample => (C, D, H, W)
-            # Convert from (C, D, H, W) to (C, H, W, D) for MONAI
             data = data.permute(0, 2, 3, 1)  # (C, D, H, W) -> (C, H, W, D)
             for t in self.transforms:
                 data = t(data)
-            # Convert back from (C, H, W, D) to (C, D, H, W)
-            data = data.permute(0, 3, 1, 2)  # (C, H, W, D) -> (C, D, H, W)
+            data = data.permute(0, 3, 1, 2).contiguous()  # (C, H, W, D) -> (C, D, H, W)
             return data
 
 def build_3d_augmentations(pipeline_cfg: List[dict]):
