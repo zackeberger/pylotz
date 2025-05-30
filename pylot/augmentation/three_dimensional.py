@@ -10,6 +10,9 @@ class TransformPipeline:
        If `data` is 5D (B, C, D, H, W), we loop over each item in the batch
        since MONAI expects 4D (C, D, H, W) tensors. If `data` is 4D (C, D, H, W),
        we apply the transforms directly.
+
+       Note: We convert from PyTorch (C, D, H, W) to MONAI (C, H, W, D) format
+       before applying transforms, then convert back.
     """
     def __init__(self, transforms):
         self.transforms = transforms
@@ -22,15 +25,23 @@ class TransformPipeline:
             out_list = []
             for i in range(data.shape[0]):
                 sample = data[i]  # shape (C, D, H, W)
+                # Convert from (C, D, H, W) to (C, H, W, D) for MONAI
+                sample = sample.permute(0, 2, 3, 1)  # (C, D, H, W) -> (C, H, W, D)
                 for t in self.transforms:
                     sample = t(sample)
+                # Convert back from (C, H, W, D) to (C, D, H, W)
+                sample = sample.permute(0, 3, 1, 2)  # (C, H, W, D) -> (C, D, H, W)
                 out_list.append(sample)
             # Stack them back up: (B, C, D, H, W)
             return torch.stack(out_list, dim=0)
         else:
             # For a single sample => (C, D, H, W)
+            # Convert from (C, D, H, W) to (C, H, W, D) for MONAI
+            data = data.permute(0, 2, 3, 1)  # (C, D, H, W) -> (C, H, W, D)
             for t in self.transforms:
                 data = t(data)
+            # Convert back from (C, H, W, D) to (C, D, H, W)
+            data = data.permute(0, 3, 1, 2)  # (C, H, W, D) -> (C, D, H, W)
             return data
 
 def build_3d_augmentations(pipeline_cfg: List[dict]):
