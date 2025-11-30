@@ -228,7 +228,7 @@ class WandbLogger:
     Simple WandbLogger callback
     """
 
-    def __init__(self, exp, project=None, entity=None, name=None):
+    def __init__(self, exp, project=None, entity=None, name=None, tags=None):
         self.exp = exp
 
         wandb.init(
@@ -236,6 +236,7 @@ class WandbLogger:
             entity=entity,
             config=exp.config.to_dict(),
             resume="allow",
+            tags=tags,
         )
         wandb.run.name = exp.path.name if name is None else name
 
