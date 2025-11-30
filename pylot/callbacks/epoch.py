@@ -136,9 +136,7 @@ class ModelCheckpoint:
         self.save_freq = save_freq
 
         min_patterns = ["*loss*", "*err*"]
-        # TODO-- Zack added auroc here, confirm that is all that is necessary
-        # to save a best model.
-        max_patterns = ["*acc*", "*auroc*", "*precision*", "*score*"]
+        max_patterns = ["*acc*", "*auroc*", "*auprc*", "*precision*", "*score*"]
 
         if mode == "auto":
             self.mode = None
